@@ -1,4 +1,3 @@
-
 export interface Wish {
   id: string;
   author: string;
@@ -8,6 +7,18 @@ export interface Wish {
   cheers: number;
   timestamp: number;
   horseType: 'red' | 'gold' | 'white';
+  userId: string;
+  // Fix: Added optional fortune field for Gemini-generated encouragement
+  fortune?: string;
 }
 
-export type ViewType = 'map' | 'list' | 'write';
+export interface Comment {
+  id: string;
+  wishId: string;
+  userId: string;
+  author: string;
+  content: string;
+  timestamp: number;
+}
+
+export type ViewType = 'map' | 'list' | 'write' | 'edit';

@@ -1,17 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth } from '../firebaseConfig';
 
 interface WishFormProps {
-  onSubmit: (wishData: { author: string; content: string; lat: number; lng: number }) => void;
+  initialData?: { id: string; content: string };
+  onSubmit: (wishData: { content: string; lat?: number; lng?: number; id?: string }) => void;
   onCancel: () => void;
 }
 
-const WishForm: React.FC<WishFormProps> = ({ onSubmit, onCancel }) => {
+const WishForm: React.FC<WishFormProps> = ({ initialData, onSubmit, onCancel }) => {
   const user = auth.currentUser;
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialData?.content || '');
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    if (initialData) {
+      setContent(initialData.content);
+    }
+  }, [initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,15 +26,25 @@ const WishForm: React.FC<WishFormProps> = ({ onSubmit, onCancel }) => {
 
     setLoading(true);
     
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        // Finalize state
+    // 수정일 경우 위치 정보를 다시 가져오지 않고 내용만 업데이트
+    if (initialData) {
         setIsSuccess(true);
         setTimeout(() => {
             onSubmit({ 
-              author: user.displayName || user.email || '익명 말', 
+              content,
+              id: initialData.id
+            });
+            setLoading(false);
+        }, 1000);
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setIsSuccess(true);
+        setTimeout(() => {
+            onSubmit({ 
               content, 
               lat: latitude, 
               lng: longitude 
@@ -38,7 +55,6 @@ const WishForm: React.FC<WishFormProps> = ({ onSubmit, onCancel }) => {
       (error) => {
         console.error(error);
         onSubmit({ 
-          author: user.displayName || user.email || '익명 말', 
           content, 
           lat: 36.5, 
           lng: 127.5 
@@ -50,9 +66,11 @@ const WishForm: React.FC<WishFormProps> = ({ onSubmit, onCancel }) => {
 
   if (isSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white rounded-3xl border-4 border-red-100">
+      <div className="flex flex-col items-center justify-center p-8 text-center space-y-6 bg-white rounded-3xl border-4 border-red-100 shadow-2xl">
         <div className="text-6xl gallop-anim">🐎</div>
-        <h2 className="text-2xl font-bold text-red-600 font-gaegu">소원이 등록되었습니다!</h2>
+        <h2 className="text-2xl font-bold text-red-600 font-gaegu">
+          {initialData ? '소원이 수정되었습니다!' : '소원이 등록되었습니다!'}
+        </h2>
         <p className="text-sm text-gray-500 italic">"붉은 말과 함께 힘차게 달려보세요!"</p>
       </div>
     );
@@ -61,9 +79,11 @@ const WishForm: React.FC<WishFormProps> = ({ onSubmit, onCancel }) => {
   return (
     <div className="p-6 bg-white rounded-3xl shadow-xl space-y-6 border-4 border-red-100">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-red-500 font-gaegu">2026 소원 적기</h2>
+        <h2 className="text-3xl font-bold text-red-500 font-gaegu">
+          {initialData ? '소원 수정하기' : '2026 소원 적기'}
+        </h2>
         <div className="flex items-center justify-center gap-2 mt-1">
-          <img src={user?.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=horse'} className="w-5 h-5 rounded-full" alt="profile" />
+          <img src={user?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} className="w-5 h-5 rounded-full" alt="profile" />
           <span className="text-xs font-bold text-gray-600">{user?.displayName || '회원님'}</span>
         </div>
       </div>
@@ -94,7 +114,7 @@ const WishForm: React.FC<WishFormProps> = ({ onSubmit, onCancel }) => {
             disabled={loading}
             className="flex-[2] py-4 rounded-2xl bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold shadow-lg shadow-red-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
           >
-            {loading ? '위치 확인 중...' : '소원 질주 시작! 🐎'}
+            {loading ? '처리 중...' : (initialData ? '수정 완료! ✏️' : '소원 질주 시작! 🐎')}
           </button>
         </div>
       </form>
