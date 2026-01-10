@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, increment, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
@@ -8,7 +9,6 @@ import WishForm from './components/WishForm';
 import AuthUI from './components/AuthUI';
 import IntroScreen from './components/IntroScreen';
 import CommentSection from './components/CommentSection';
-// Fix: Import the Gemini service
 import { generateHorseFortune } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -26,9 +26,9 @@ const App: React.FC = () => {
       setUser(currentUser);
     });
 
+    // 복합 인덱스 오류를 방지하기 위해 단일 필드로만 쿼리합니다.
     const q = query(
       collection(db, 'wishes'), 
-      orderBy('cheers', 'desc'),
       orderBy('timestamp', 'desc')
     );
 
@@ -38,14 +38,16 @@ const App: React.FC = () => {
         snapshot.forEach((doc) => {
           wishList.push({ id: doc.id, ...doc.data() } as Wish);
         });
+        
+        // 클라이언트 측에서 응원 순(cheers)으로 최종 정렬하여 랭킹을 매깁니다.
+        wishList.sort((a, b) => b.cheers - a.cheers);
+        
         setWishes(wishList);
         setDbError(null);
       },
       (error) => {
         console.error("Firestore Error:", error);
-        if (error.code === 'permission-denied') {
-          setDbError("데이터를 읽을 권한이 없습니다.");
-        }
+        setDbError("데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       }
     );
 
@@ -58,20 +60,17 @@ const App: React.FC = () => {
   const handleWishSubmit = async (data: { content: string; lat?: number; lng?: number; id?: string }) => {
     try {
       if (data.id) {
-        // 수정 모드
         const wishRef = doc(db, 'wishes', data.id);
         await updateDoc(wishRef, {
           content: data.content,
         });
       } else {
-        // 새 소원 등록
-        // Fix: Generate fortune using Gemini before saving
         const fortune = await generateHorseFortune(data.content);
         await addDoc(collection(db, 'wishes'), {
           author: user?.displayName || user?.email || '익명 말',
           content: data.content,
-          lat: data.lat,
-          lng: data.lng,
+          lat: data.lat || 36.5,
+          lng: data.lng || 127.5,
           cheers: 0,
           timestamp: Date.now(),
           horseType: ['red', 'gold', 'white'][Math.floor(Math.random() * 3)],
@@ -88,7 +87,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteWish = async (id: string) => {
-    if (!window.confirm('정말로 이 소원을 삭제하시겠습니까? 관련 댓글도 모두 사라질 수 있습니다.')) return;
+    if (!window.confirm('정말로 이 소원을 삭제하시겠습니까?')) return;
     try {
       await deleteDoc(doc(db, 'wishes', id));
     } catch (err) {
@@ -114,9 +113,9 @@ const App: React.FC = () => {
   const handleLogout = () => signOut(auth);
 
   const renderRankBadge = (index: number) => {
-    if (index === 0) return <span className="text-2xl" title="1위">🥇</span>;
-    if (index === 1) return <span className="text-2xl" title="2위">🥈</span>;
-    if (index === 2) return <span className="text-2xl" title="3위">🥉</span>;
+    if (index === 0) return <span className="text-2xl">🥇</span>;
+    if (index === 1) return <span className="text-2xl">🥈</span>;
+    if (index === 2) return <span className="text-2xl">🥉</span>;
     return <span className="w-6 h-6 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full text-[10px] font-bold">{index + 1}</span>;
   };
 
@@ -131,7 +130,7 @@ const App: React.FC = () => {
           <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-2xl gallop-anim shadow-md">🐎</div>
           <div>
             <h1 className="text-xl font-bold text-red-600 font-gaegu leading-none">소원 질주</h1>
-            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Year of the Red Horse</p>
+            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">2026 병오년</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -157,10 +156,7 @@ const App: React.FC = () => {
 
         {view === 'list' && (
           <div className="absolute inset-0 overflow-y-auto p-4 space-y-4 pb-32">
-            <div className="flex items-end justify-between border-b-2 border-red-100 pb-2 mb-4">
-               <h2 className="text-2xl font-bold font-gaegu text-red-600">실시간 소원 랭킹</h2>
-               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Cheers Ranking</span>
-            </div>
+            <h2 className="text-2xl font-bold font-gaegu text-red-600 border-b-2 border-red-100 pb-2">실시간 소원 랭킹</h2>
             
             {wishes.map((wish, index) => (
               <div key={wish.id} className={`relative bg-white p-5 rounded-3xl shadow-md border-b-4 transition-all duration-300 ${index < 3 ? 'ring-2 ring-red-100' : ''} ${selectedWish?.id === wish.id ? 'border-orange-400 ring-4 ring-orange-200 scale-[1.01]' : 'border-red-200'}`}>
@@ -175,36 +171,28 @@ const App: React.FC = () => {
 
                 <div className="pl-8">
                   <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-0.5 rounded-full">{wish.author}</span>
-                      {index === 0 && <span className="text-[8px] bg-yellow-400 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">CHAMPION</span>}
-                    </div>
-                    <span className="text-[10px] text-gray-400 italic font-gaegu">{new Date(wish.timestamp).toLocaleDateString()}</span>
+                    <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-0.5 rounded-full">{wish.author}</span>
+                    <span className="text-[10px] text-gray-400 font-gaegu">{new Date(wish.timestamp).toLocaleDateString()}</span>
                   </div>
                   <p className={`text-gray-800 font-medium mb-4 leading-relaxed font-gaegu ${index === 0 ? 'text-2xl text-red-700' : 'text-xl'}`}>"{wish.content}"</p>
                   
-                  {/* Fix: Display Gemini-generated fortune if available */}
                   {wish.fortune && (
-                    <div className="mb-4 p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl border border-red-100 shadow-inner text-sm text-red-800 font-gaegu flex items-start gap-2">
-                      <span className="text-xl animate-bounce">✨</span>
-                      <div>
-                        <p className="font-bold text-[10px] text-orange-500 uppercase tracking-tighter mb-1">붉은 말의 새해 덕담</p>
-                        <p className="text-base italic leading-snug">"{wish.fortune}"</p>
-                      </div>
+                    <div className="mb-4 p-3 bg-orange-50 rounded-2xl border border-red-50 text-sm text-red-800 font-gaegu">
+                      <p className="font-bold text-[10px] text-orange-500 uppercase mb-1">✨ 붉은 말의 덕담</p>
+                      <p className="italic">"{wish.fortune}"</p>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 text-red-400">
                       <span className="text-lg gallop-anim">🐎</span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Racing</span>
+                      <span className="text-[10px] font-bold">질주 중</span>
                     </div>
                     <button onClick={() => handleCheer(wish.id)} className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full text-sm font-bold shadow-md active:scale-90 transition-all">
-                      <span>🔥 응원해!</span>
+                      <span>🔥 응원</span>
                       <span className="bg-white/20 px-2 rounded-md">{wish.cheers}</span>
                     </button>
                   </div>
-
                   <CommentSection wishId={wish.id} />
                 </div>
               </div>
@@ -213,31 +201,28 @@ const App: React.FC = () => {
         )}
 
         {(view === 'write' || view === 'edit') && (
-          <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="w-full max-h-full py-8">
-              <WishForm 
-                initialData={editingWish ? { id: editingWish.id, content: editingWish.content } : undefined} 
-                onSubmit={handleWishSubmit} 
-                onCancel={() => { setView('map'); setEditingWish(null); }} 
-              />
-            </div>
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <WishForm 
+              initialData={editingWish ? { id: editingWish.id, content: editingWish.content } : undefined} 
+              onSubmit={handleWishSubmit} 
+              onCancel={() => { setView('map'); setEditingWish(null); }} 
+            />
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-red-100 flex justify-around items-center h-20 px-4 rounded-t-[2.5rem] shadow-[0_-5px_20px_rgba(239,68,68,0.1)] z-20">
-        <button onClick={() => { setView('map'); setSelectedWish(null); }} className={`flex flex-col items-center gap-1 transition-all ${view === 'map' ? 'text-red-500 scale-110' : 'text-gray-400'}`}>
-          <div className={`p-2 rounded-2xl ${view === 'map' ? 'bg-red-50' : 'bg-transparent'}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg></div>
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-red-100 flex justify-around items-center h-20 z-20">
+        <button onClick={() => { setView('map'); setSelectedWish(null); }} className={`flex flex-col items-center gap-1 ${view === 'map' ? 'text-red-500' : 'text-gray-400'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
           <span className="text-[10px] font-bold">지도</span>
         </button>
-        <button onClick={() => { if(!user) setShowAuthModal(true); else setView('write'); }} className="relative -top-10 flex flex-col items-center">
-          <div className="w-16 h-16 bg-gradient-to-tr from-red-600 via-red-500 to-orange-400 rounded-full flex items-center justify-center text-white shadow-2xl shadow-red-200 hover:scale-110 active:scale-90 transition-all border-4 border-white">
+        <button onClick={() => { if(!user) setShowAuthModal(true); else setView('write'); }} className="relative -top-6">
+          <div className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center text-white shadow-xl border-4 border-white">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           </div>
-          <span className="mt-1 text-xs font-bold text-red-600 bg-white px-4 py-1 rounded-full shadow-md border border-red-50 font-gaegu">소원 질주</span>
         </button>
-        <button onClick={() => setView('list')} className={`flex flex-col items-center gap-1 transition-all ${view === 'list' ? 'text-red-500 scale-110' : 'text-gray-400'}`}>
-          <div className={`p-2 rounded-2xl ${view === 'list' ? 'bg-red-50' : 'bg-transparent'}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg></div>
+        <button onClick={() => setView('list')} className={`flex flex-col items-center gap-1 ${view === 'list' ? 'text-red-500' : 'text-gray-400'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
           <span className="text-[10px] font-bold">랭킹</span>
         </button>
       </nav>

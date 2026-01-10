@@ -1,4 +1,4 @@
-// Fix: Ensuring correct modular Firebase SDK imports with single quotes for consistency and to resolve module resolution issues
+// Fix: Re-importing modular Firebase SDK components to resolve potential module resolution issues
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';

@@ -1,5 +1,4 @@
-
-import { GoogleGenAI } from "@google/genai";
+import {GoogleGenAI} from "@google/genai";
 
 /**
  * Generates a festive fortune/encouragement for the 2026 Year of the Red Horse.
@@ -9,7 +8,7 @@ import { GoogleGenAI } from "@google/genai";
 export const generateHorseFortune = async (content: string): Promise<string> => {
   try {
     // CRITICAL: Initialize right before making the call as per instructions
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
     
     // Using gemini-3-flash-preview for basic text tasks
     const response = await ai.models.generateContent({
@@ -20,8 +19,8 @@ export const generateHorseFortune = async (content: string): Promise<string> => 
       },
     });
 
-    // Access the .text property directly
-    return response.text?.trim() || "";
+    // Access the .text property directly (not a method) as per SDK guidelines
+    return response.text?.trim() || "붉은 말이 당신의 소원을 싣고 힘차게 달려나갑니다! 행운이 가득하길 바랍니다.";
   } catch (error) {
     console.error("Gemini Error:", error);
     return "붉은 말이 당신의 소원을 싣고 힘차게 달려나갑니다! 행운이 가득하길 바랍니다.";
