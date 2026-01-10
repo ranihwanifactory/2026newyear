@@ -1,0 +1,100 @@
+
+/* 2026 붉은말의 해: 소원 질주 글로벌 스타일 */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-horse-red: #ef4444;
+  --color-horse-orange: #f97316;
+  --color-horse-gold: #fbbf24;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: #fef2f2;
+  color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-gaegu {
+  font-family: 'Gaegu', cursive;
+}
+
+/* 말 질주 애니메이션 */
+@keyframes gallop {
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-8px) rotate(-3deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-8px) rotate(3deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+.gallop-anim {
+  animation: gallop 0.5s infinite ease-in-out;
+}
+
+/* 반짝임 애니메이션 */
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.sparkle {
+  animation: sparkle 1.5s infinite ease-in-out;
+}
+
+/* 배경 구름/패턴 스타일 */
+.bg-horse-pattern {
+  background-image: radial-gradient(#fee2e2 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* 게임 스타일 카드 효과 */
+.game-card {
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.game-card:active {
+  transform: scale(0.95);
+}
+
+/* 커스텀 스크롤바 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fef2f2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #fca5a5;
+  border-radius: 10px;
+  border: 2px solid #fef2f2;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ef4444;
+}
+
+/* 지도 마커 애니메이션 커스텀 */
+.wish-marker {
+  transition: transform 0.3s ease;
+  z-index: 10;
+}
+
+.wish-marker:hover {
+  transform: translate(-50%, -110%) scale(1.1);
+  z-index: 20;
+}
+
+/* PWA를 위한 터치 방지 */
+.no-select {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}

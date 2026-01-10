@@ -1,5 +1,4 @@
-
-// Fix: Using standard modular Firebase SDK components for v9+
+// Fix: Using standard modular Firebase SDK components for v9+ to resolve import errors
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
@@ -13,6 +12,7 @@ const firebaseConfig = {
   appId: "1:1047092230990:web:257a0b31ab4da08cbd3c1f"
 };
 
+// Initialize Firebase with modular SDK
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
