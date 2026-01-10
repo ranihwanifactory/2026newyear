@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [selectedWish, setSelectedWish] = useState<Wish | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -23,13 +24,24 @@ const App: React.FC = () => {
     });
 
     const q = query(collection(db, 'wishes'), orderBy('timestamp', 'desc'));
-    const unsubscribeWishes = onSnapshot(q, (snapshot) => {
-      const wishList: Wish[] = [];
-      snapshot.forEach((doc) => {
-        wishList.push({ id: doc.id, ...doc.data() } as Wish);
-      });
-      setWishes(wishList);
-    });
+    const unsubscribeWishes = onSnapshot(q, 
+      (snapshot) => {
+        const wishList: Wish[] = [];
+        snapshot.forEach((doc) => {
+          wishList.push({ id: doc.id, ...doc.data() } as Wish);
+        });
+        setWishes(wishList);
+        setDbError(null);
+      },
+      (error) => {
+        console.error("Firestore Error:", error);
+        if (error.code === 'permission-denied') {
+          setDbError("데이터를 읽을 권한이 없습니다. Firebase 보안 규칙을 확인해주세요.");
+        } else {
+          setDbError("데이터를 불러오는 중 오류가 발생했습니다.");
+        }
+      }
+    );
 
     return () => {
       unsubscribeAuth();
@@ -49,6 +61,7 @@ const App: React.FC = () => {
       setView('map');
     } catch (err) {
       console.error("Error adding wish:", err);
+      alert("소원 등록 중 오류가 발생했습니다. 권한 설정을 확인해주세요.");
     }
   };
 
@@ -114,11 +127,21 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* DB Error Alert */}
+      {dbError && (
+        <div className="bg-red-100 text-red-600 p-2 text-[10px] text-center font-bold z-20">
+          ⚠️ {dbError}
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-1 relative">
         {view === 'map' && (
           <div className="absolute inset-0 p-4">
-            <WishMap wishes={wishes} onWishClick={setSelectedWish} />
+            <WishMap wishes={wishes} onWishClick={(wish) => {
+              setSelectedWish(wish);
+              setView('list'); // 리스트에서 해당 소원을 강조하거나 보여줌
+            }} />
           </div>
         )}
 
@@ -129,7 +152,7 @@ const App: React.FC = () => {
               <div className="text-center py-20 text-gray-400 font-gaegu text-lg">아직 달리는 말이 없어요.</div>
             ) : (
               wishes.map((wish) => (
-                <div key={wish.id} className="bg-white p-5 rounded-3xl shadow-md border-b-4 border-red-200 hover:translate-y-[-2px] transition-transform">
+                <div key={wish.id} className={`bg-white p-5 rounded-3xl shadow-md border-b-4 ${selectedWish?.id === wish.id ? 'border-orange-400 ring-2 ring-orange-200' : 'border-red-200'} hover:translate-y-[-2px] transition-transform`}>
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-0.5 rounded-full">{wish.author}</span>
                     <span className="text-[10px] text-gray-400 italic font-gaegu">{new Date(wish.timestamp).toLocaleDateString()}</span>
@@ -166,7 +189,7 @@ const App: React.FC = () => {
       {/* Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 backdrop-blur-xl border-t border-red-100 flex justify-around items-center h-20 px-4 rounded-t-[2.5rem] shadow-[0_-5px_20px_rgba(239,68,68,0.1)] z-20">
         <button 
-          onClick={() => setView('map')}
+          onClick={() => { setView('map'); setSelectedWish(null); }}
           className={`flex flex-col items-center gap-1 transition-all ${view === 'map' ? 'text-red-500 scale-110' : 'text-gray-400'}`}
         >
           <div className={`p-2 rounded-2xl ${view === 'map' ? 'bg-red-50' : 'bg-transparent'}`}>
