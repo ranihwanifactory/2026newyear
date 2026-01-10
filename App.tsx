@@ -23,7 +23,13 @@ const App: React.FC = () => {
       setUser(currentUser);
     });
 
-    const q = query(collection(db, 'wishes'), orderBy('timestamp', 'desc'));
+    // 응원 많은 순(cheers desc), 같으면 최신 순(timestamp desc)으로 쿼리
+    const q = query(
+      collection(db, 'wishes'), 
+      orderBy('cheers', 'desc'),
+      orderBy('timestamp', 'desc')
+    );
+
     const unsubscribeWishes = onSnapshot(q, 
       (snapshot) => {
         const wishList: Wish[] = [];
@@ -90,6 +96,14 @@ const App: React.FC = () => {
 
   const handleLogout = () => signOut(auth);
 
+  // 랭킹 배지 렌더러
+  const renderRankBadge = (index: number) => {
+    if (index === 0) return <span className="text-2xl" title="1위">🥇</span>;
+    if (index === 1) return <span className="text-2xl" title="2위">🥈</span>;
+    if (index === 2) return <span className="text-2xl" title="3위">🥉</span>;
+    return <span className="w-6 h-6 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full text-[10px] font-bold">{index + 1}</span>;
+  };
+
   if (showIntro) return <IntroScreen onFinish={() => setShowIntro(false)} />;
 
   return (
@@ -110,16 +124,19 @@ const App: React.FC = () => {
         
         <div className="flex items-center gap-2">
           {user ? (
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full text-[10px] font-bold text-gray-400 border border-gray-100"
-            >
-              로그아웃
-            </button>
+            <div className="flex items-center gap-2">
+               <img src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} className="w-6 h-6 rounded-full border border-red-200" alt="me" />
+               <button 
+                onClick={handleLogout}
+                className="px-2 py-1 bg-gray-50 rounded-md text-[10px] font-bold text-gray-400 border border-gray-100"
+              >
+                로그아웃
+              </button>
+            </div>
           ) : (
             <button 
               onClick={() => setShowAuthModal(true)}
-              className="px-4 py-1.5 bg-red-500 text-white rounded-full text-xs font-bold shadow-sm"
+              className="px-4 py-1.5 bg-red-500 text-white rounded-full text-xs font-bold shadow-sm active:scale-95 transition-all"
             >
               로그인
             </button>
@@ -140,36 +157,59 @@ const App: React.FC = () => {
           <div className="absolute inset-0 p-4">
             <WishMap wishes={wishes} onWishClick={(wish) => {
               setSelectedWish(wish);
-              setView('list'); // 리스트에서 해당 소원을 강조하거나 보여줌
+              setView('list'); 
+              // 클릭 시 리스트 상단으로 스크롤되는 로직이 필요할 수 있음
             }} />
           </div>
         )}
 
         {view === 'list' && (
-          <div className="absolute inset-0 overflow-y-auto p-4 space-y-4 pb-24">
-            <h2 className="text-2xl font-bold font-gaegu text-red-600 border-b-2 border-red-100 pb-2 mb-4">전국 소원 보관함</h2>
+          <div className="absolute inset-0 overflow-y-auto p-4 space-y-4 pb-32">
+            <div className="flex items-end justify-between border-b-2 border-red-100 pb-2 mb-4">
+               <h2 className="text-2xl font-bold font-gaegu text-red-600">실시간 소원 랭킹</h2>
+               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Cheers Ranking</span>
+            </div>
+            
             {wishes.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 font-gaegu text-lg">아직 달리는 말이 없어요.</div>
+              <div className="text-center py-20 text-gray-400 font-gaegu text-lg">아직 달리는 말이 없어요. 소원을 적고 1등이 되어보세요!</div>
             ) : (
-              wishes.map((wish) => (
-                <div key={wish.id} className={`bg-white p-5 rounded-3xl shadow-md border-b-4 ${selectedWish?.id === wish.id ? 'border-orange-400 ring-2 ring-orange-200' : 'border-red-200'} hover:translate-y-[-2px] transition-transform`}>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-0.5 rounded-full">{wish.author}</span>
-                    <span className="text-[10px] text-gray-400 italic font-gaegu">{new Date(wish.timestamp).toLocaleDateString()}</span>
+              wishes.map((wish, index) => (
+                <div 
+                  key={wish.id} 
+                  className={`relative bg-white p-5 rounded-3xl shadow-md border-b-4 transition-all duration-300
+                    ${index < 3 ? 'ring-2 ring-red-100' : ''}
+                    ${selectedWish?.id === wish.id ? 'border-orange-400 ring-4 ring-orange-200 scale-[1.02] z-10' : 'border-red-200'} 
+                    hover:translate-y-[-2px]`}
+                >
+                  <div className="absolute top-4 left-4 z-10">
+                    {renderRankBadge(index)}
                   </div>
-                  <p className="text-gray-800 font-medium mb-4 leading-relaxed font-gaegu text-xl">"{wish.content}"</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-red-400">
-                      <span className="text-lg gallop-anim">🐎</span>
-                      <span className="text-[10px] font-bold uppercase">Racing</span>
+
+                  <div className="pl-8">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-0.5 rounded-full">{wish.author}</span>
+                        {index === 0 && <span className="text-[8px] bg-yellow-400 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">CHAMPION</span>}
+                      </div>
+                      <span className="text-[10px] text-gray-400 italic font-gaegu">{new Date(wish.timestamp).toLocaleDateString()}</span>
                     </div>
-                    <button 
-                      onClick={() => handleCheer(wish.id)}
-                      className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-orange-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md hover:scale-105 active:scale-95 transition-all"
-                    >
-                      <span>🔥 응원해!</span>
-                      <span className="bg-white/20 px-2 rounded-md">{wish.cheers}</span>
-                    </button>
+                    <p className={`text-gray-800 font-medium mb-4 leading-relaxed font-gaegu ${index === 0 ? 'text-2xl text-red-700' : 'text-xl'}`}>
+                      "{wish.content}"
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1 text-red-400">
+                        <span className={`text-lg ${index === 0 ? 'gallop-anim scale-125' : 'gallop-anim'}`}>🐎</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">{index < 3 ? 'Elite Runner' : 'Racing'}</span>
+                      </div>
+                      <button 
+                        onClick={() => handleCheer(wish.id)}
+                        className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold shadow-md active:scale-90 transition-all
+                          ${index === 0 ? 'bg-gradient-to-r from-yellow-500 to-red-600 text-white' : 'bg-gradient-to-r from-red-500 to-orange-500 text-white'}`}
+                      >
+                        <span>🔥 응원해!</span>
+                        <span className="bg-white/20 px-2 rounded-md">{wish.cheers}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -178,8 +218,8 @@ const App: React.FC = () => {
         )}
 
         {view === 'write' && (
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-full">
+          <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="w-full max-h-full py-8">
               <WishForm onSubmit={handleAddWish} onCancel={() => setView('map')} />
             </div>
           </div>
@@ -187,7 +227,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 backdrop-blur-xl border-t border-red-100 flex justify-around items-center h-20 px-4 rounded-t-[2.5rem] shadow-[0_-5px_20px_rgba(239,68,68,0.1)] z-20">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-red-100 flex justify-around items-center h-20 px-4 rounded-t-[2.5rem] shadow-[0_-5px_20px_rgba(239,68,68,0.1)] z-20">
         <button 
           onClick={() => { setView('map'); setSelectedWish(null); }}
           className={`flex flex-col items-center gap-1 transition-all ${view === 'map' ? 'text-red-500 scale-110' : 'text-gray-400'}`}
@@ -221,7 +261,7 @@ const App: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
           </div>
-          <span className="text-[10px] font-bold">보관함</span>
+          <span className="text-[10px] font-bold">랭킹</span>
         </button>
       </nav>
     </div>
