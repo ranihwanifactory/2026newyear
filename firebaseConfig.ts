@@ -1,4 +1,5 @@
-// Fix: Re-importing modular Firebase SDK components to resolve potential module resolution issues
+
+// Fix: Using standard modular Firebase SDK components for v9+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
