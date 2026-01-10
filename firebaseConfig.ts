@@ -1,7 +1,7 @@
-// Fix: Moved imports to the top and cleaned up formatting to ensure correct module resolution
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+// Fix: Ensuring correct modular Firebase SDK imports with single quotes for consistency and to resolve module resolution issues
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDFgGnY4UR2HmBihj-uJYs33gLctaxrJ00",
